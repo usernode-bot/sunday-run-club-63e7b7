@@ -3,5 +3,22 @@
   "icon": {
     "emoji": "👟"
   },
-  "secrets": []
+  "secrets": [],
+  "tests": [
+    {
+      "id": "board.week",
+      "name": "Week board shows the club's standings with miles strips",
+      "visual": true,
+      "impact": ["public/**", "server.js", "styles/**"],
+      "path": "/",
+      "expectText": "This week",
+      "expectSelector": ".strip"
+    },
+    {
+      "id": "board.log-form",
+      "name": "Log a run form is present",
+      "path": "/",
+      "expectText": "Log a run"
+    }
+  ]
 }
