@@ -100,24 +100,28 @@ tables you've marked private), etc.
 
 ## About Sunday Run Club
 
-A run tracker
-
-_(add a sentence or two more of product context here so Claude Code has a
-shared understanding of what this app is for)_
+A run tracker for a running club: one week board shows everyone's miles
+for the current week side by side, so the club can see who's keeping up.
+Members log their own runs (miles, optional note, date), each runner
+picks their own weekly mile goal, and the three previous weeks sit below
+the standings.
 
 ## Design
 
-This app's look. The first real version fills in the blanks; every later
-change follows it, and updates it when a request changes the look on purpose.
+This app's look. Set by the first real version; every later change
+follows it, and updates it when a request changes the look on purpose.
 
-- **Palette:** _(name the accent, any second colour and the neutrals, e.g.
-  "accent: tomato red; second: basil green; neutrals: warm greys")_
-- **Signature element:** _(the one thing on screen drawn from this app's
-  subject, which no other app would have)_
-- **Type scale:** `text-title`, `text-heading`, `text-body`, `text-small`
-  _(change their sizes in `tailwind.config.js` if you must, not their number)_
-- **One fixed look:** _(only for an app drawn as its own scene, such as a
-  game: which look, and why. Otherwise delete this line.)_
+- **Palette:** running-track orange as the one accent — a warm brick
+  orange in the light look, a bright amber orange in the dark — on the
+  kit's warm stone neutrals (soft warm grey page, white surfaces, warm
+  grey borders and secondary text). Every text pair keeps 4.5:1 or more
+  in both looks.
+- **Signature element:** the weekly miles strip — a thin rounded bar in
+  each standings row, filling toward that runner's own weekly goal. Over
+  the goal it is simply full; no goal means no fill and the words
+  "no goal set".
+- **Type scale:** `text-title`, `text-heading`, `text-body`, `text-small`,
+  unchanged.
 
 The kit is in `styles/tailwind-input.css`: colour tokens with a light and
 a dark value (named in `tailwind.config.js`), and a few components
@@ -139,6 +143,14 @@ Re-theme by changing the token values there, keeping every text pair at
 
 ## App-specific conventions
 
-_(optional — e.g. "all currency values stored as integer cents, not
-floats"; "the `posts` table is append-only"; "avoid adding new
-dependencies"; etc.)_
+- A week runs Monday to Sunday and totals reset each week. All week
+  boundaries are computed in UTC from `req.now` (server) and
+  `usernode.now()` (page), never `new Date()` or SQL `NOW()`.
+- All three tables (`runs`, `weekly_totals`, `weekly_goals`) are public:
+  their rows are club-visible usernames and mile numbers. `runs` is
+  append-only in this version — `weekly_totals` accumulates on insert, so
+  editing or deleting runs would need a totals recomputation first.
+- No new dependencies.
+- Staging seeds three fake runners ("Staging demo Ada/Ben/Priya", ids
+  910001–910003) with goals and runs, derived totals included; it never
+  attributes anything to the visitor.

@@ -103,6 +103,9 @@ function requestNow(req) {
 app.use((req, res, next) => {
   req.now = requestNow(req);
   const token = req.query.token || req.headers['x-usernode-token'];
+  // Kept as-is for calls that act for this viewer, e.g. the platform's
+  // members API, which is called with the caller's own token.
+  req.userToken = typeof token === 'string' && token ? token : null;
   if (token && JWT_PUBLIC_KEY && APP_AUDIENCE) {
     try {
       // Pin the algorithm, issuer and audience. Without `algorithms` a
@@ -154,30 +157,193 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 // fresh load.
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
-// Button press
-app.post('/api/press', async (req, res) => {
+// Weeks run Monday to Sunday, in UTC, and totals reset each week. The
+// Monday that starts the week a moment falls in:
+function fmtDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+function mondayOf(d) {
+  const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+  return day;
+}
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return fmtDate(d);
+}
+
+// The club's roster: everyone in the Homeroom project, from the platform's
+// members API — never "who has opened the app". Called with this request's
+// user token and cached for a minute; on any failure (the platform's check
+// runner, for one, is not a member) the board degrades to runners known
+// from its own tables instead of failing the page.
+const PLATFORM_API_URL = (process.env.USERNODE_PLATFORM_API_V1_URL
+  || process.env.USERNODE_PLATFORM_API_URL || '').replace(/\/+$/, '');
+const rosterCache = { at: 0, members: null };
+
+async function fetchRoster(userToken) {
+  if (!PLATFORM_API_URL || !userToken) return null;
+  if (rosterCache.members && Date.now() - rosterCache.at < 60_000) return rosterCache.members;
+  const headers = { 'x-usernode-user-token': userToken };
+  if (!IS_STAGING && process.env.USERNODE_LLM_PROXY_TOKEN) {
+    headers['x-usernode-app-token'] = process.env.USERNODE_LLM_PROXY_TOKEN;
+  }
   try {
-    await pool.query(`
-      INSERT INTO presses (user_id, username) VALUES ($1, $2)
-    `, [req.user.id, req.user.username]);
-    res.json({ ok: true });
+    const upstream = await fetch(PLATFORM_API_URL + '/members?limit=100', { headers });
+    if (!upstream.ok) return null;
+    const data = await upstream.json();
+    const list = Array.isArray(data) ? data : (Array.isArray(data.members) ? data.members : []);
+    const members = list
+      .map((m) => ({ id: Number(m.id), username: String(m.username || m.name || '') }))
+      .filter((m) => Number.isFinite(m.id) && m.id > 0 && m.username);
+    rosterCache.at = Date.now();
+    rosterCache.members = members;
+    return members;
+  } catch {
+    return null;
+  }
+}
+
+// The week snapshot the board renders: who is in the club, their miles this
+// week and their goal, plus the three previous weeks. Reads must work for a
+// guest too, so nothing here assumes req.user.
+async function buildLeaderboard(req) {
+  const weekStart = fmtDate(mondayOf(req.now));
+  const weekEnd = addDays(weekStart, 6);
+  const recentStarts = [-7, -14, -21].map((n) => addDays(weekStart, n));
+
+  const [roster, totals, goals, recent] = await Promise.all([
+    fetchRoster(req.userToken),
+    pool.query('SELECT user_id, username, miles FROM weekly_totals WHERE week_start = $1', [weekStart]),
+    pool.query('SELECT user_id, username, goal_miles FROM weekly_goals'),
+    pool.query('SELECT user_id, week_start::text AS week_start, miles FROM weekly_totals WHERE week_start = ANY($1::date[])', [recentStarts]),
+  ]);
+
+  // The club is the roster plus anyone the app already knows about: a
+  // member who has never run shows 0.0, and a runner the roster left out
+  // still shows with their miles.
+  const runners = new Map();
+  const add = (id, username) => {
+    if (!runners.has(id)) runners.set(id, { user_id: id, username, miles: 0, goal: null });
+    return runners.get(id);
+  };
+  for (const m of roster || []) add(m.id, m.username);
+  for (const row of totals.rows) add(row.user_id, row.username).miles = Number(row.miles);
+  for (const row of goals.rows) add(row.user_id, row.username).goal = Number(row.goal_miles);
+
+  const runnerList = [...runners.values()]
+    .sort((a, b) => b.miles - a.miles || a.username.localeCompare(b.username));
+
+  const byWeek = new Map();
+  for (const row of recent.rows) {
+    if (!byWeek.has(row.week_start)) byWeek.set(row.week_start, []);
+    byWeek.get(row.week_start).push({ user_id: row.user_id, miles: Number(row.miles) });
+  }
+
+  return {
+    viewer_id: req.user ? req.user.id : null,
+    week: { start: weekStart, end: weekEnd },
+    runners: runnerList,
+    recent_weeks: recentStarts.map((ws) => ({
+      week_start: ws,
+      totals: (byWeek.get(ws) || []).sort((a, b) => b.miles - a.miles),
+    })),
+  };
+}
+
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    res.json(await buildLeaderboard(req));
   } catch (err) {
+    console.warn('leaderboard failed: ' + err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Leaderboard
-app.get('/api/leaderboard', async (_req, res) => {
+// Log a run: miles for yourself, an optional note, and the day it happened.
+// The date comes pre-filled with today and can be moved to a past day, so a
+// Sunday run can be logged on Monday — but never into the future, and not
+// more than a year back.
+app.post('/api/runs', async (req, res) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT username, COUNT(*) as presses
-      FROM presses
-      GROUP BY username
-      ORDER BY presses DESC
-      LIMIT 50
-    `);
-    res.json({ leaderboard: rows });
+    const body = req.body || {};
+    const miles = Number(body.miles);
+    if (!Number.isFinite(miles) || miles <= 0 || miles > 500) {
+      return res.status(400).json({ error: 'Enter a distance between 0 and 500 miles' });
+    }
+    const note = body.note == null ? '' : String(body.note).trim();
+    if (note.length > 200) {
+      return res.status(400).json({ error: 'Keep the note to 200 characters or fewer' });
+    }
+    const today = fmtDate(req.now);
+    let ranOn = today;
+    let ranOnDate = req.now;
+    if (body.date != null && body.date !== '') {
+      const d = String(body.date);
+      const parsed = new Date(d + 'T00:00:00Z');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(parsed.getTime()) || fmtDate(parsed) !== d) {
+        return res.status(400).json({ error: 'Enter a real date' });
+      }
+      if (d > today) return res.status(400).json({ error: 'The date cannot be in the future' });
+      if (d < addDays(today, -365)) {
+        return res.status(400).json({ error: 'The date cannot be more than a year old' });
+      }
+      ranOn = d;
+      ranOnDate = parsed;
+    }
+    const weekStart = fmtDate(mondayOf(ranOnDate));
+
+    // The run and its week's total are written together: if either fails,
+    // neither happens.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO runs (user_id, username, miles, note, ran_on) VALUES ($1, $2, $3, $4, $5)`,
+        [req.user.id, req.user.username, miles, note || null, ranOn]
+      );
+      await client.query(
+        `INSERT INTO weekly_totals (user_id, week_start, username, miles)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id, week_start)
+         DO UPDATE SET miles = weekly_totals.miles + EXCLUDED.miles, username = EXCLUDED.username`,
+        [req.user.id, weekStart, req.user.username, miles]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    // One round trip: answer with the refreshed week so the page can
+    // re-render straight from the response.
+    res.status(201).json({ ok: true, logged: miles, ...(await buildLeaderboard(req)) });
   } catch (err) {
+    console.warn('log run failed: ' + err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Each runner picks their own weekly mile goal; the strip fills toward it.
+// Saving overwrites it and applies from then on — past weeks are not
+// rewritten.
+app.post('/api/goals', async (req, res) => {
+  try {
+    const goal = Number((req.body || {}).goal_miles);
+    if (!Number.isFinite(goal) || goal <= 0 || goal > 1000) {
+      return res.status(400).json({ error: 'Enter a goal between 0 and 1000 miles' });
+    }
+    await pool.query(
+      `INSERT INTO weekly_goals (user_id, username, goal_miles) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id)
+       DO UPDATE SET goal_miles = EXCLUDED.goal_miles, username = EXCLUDED.username, updated_at = NOW()`,
+      [req.user.id, req.user.username, goal]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.warn('save goal failed: ' + err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -219,15 +385,101 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-async function start() {
+// Staging seed: obviously fake runners and runs so the populated board can
+// be seen before anyone logs anything. Idempotent (fixed ids, ON CONFLICT
+// DO NOTHING) and a strict no-op in production. It never attributes
+// anything to the visitor: only these fixed fake identities.
+async function seedStaging() {
+  const demo = [
+    { id: 910001, username: 'Staging demo Ada', goal: 20 },
+    { id: 910002, username: 'Staging demo Ben', goal: 15 },
+    { id: 910003, username: 'Staging demo Priya', goal: 25 },
+  ];
+  for (const r of demo) {
+    await pool.query(
+      `INSERT INTO weekly_goals (user_id, username, goal_miles) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [r.id, r.username, r.goal]
+    );
+  }
+  const now = new Date();
+  const weekStart = fmtDate(mondayOf(now));
+  const dow = (now.getUTCDay() + 6) % 7; // 0 = Monday
+  // [runner, weeks back (0 = this week), day offset in the week, miles]
+  const plan = [
+    [0, 0, Math.min(2, dow), 6.2], [0, 0, Math.min(5, dow), 4.0],
+    [0, 1, 2, 8.0],
+    [0, 2, 1, 10.2], [0, 2, 5, 8.0],
+    [0, 3, 3, 7.5], [0, 3, 6, 7.5],
+    [1, 0, Math.min(3, dow), 9.0],
+    [1, 1, 4, 12.0],
+    [1, 2, 2, 9.5],
+    [1, 3, 5, 11.0],
+    [2, 0, Math.min(1, dow), 14.5],
+    [2, 1, 1, 4.5],
+    [2, 3, 2, 6.0],
+  ];
+  let runId = 911001;
+  for (const [runnerIdx, weeksBack, dayOffset, miles] of plan) {
+    const ranOn = weeksBack === 0
+      // Never in the future: a mid-week run lands on a day that has happened.
+      ? addDays(weekStart, Math.min(dayOffset, dow))
+      : addDays(addDays(weekStart, -7 * weeksBack), dayOffset);
+    const r = demo[runnerIdx];
+    await pool.query(
+      `INSERT INTO runs (id, user_id, username, miles, note, ran_on) VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO NOTHING`,
+      [runId++, r.id, r.username, miles, null, ranOn]
+    );
+  }
+  // Totals are derived from the runs, so they always agree with them.
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS presses (
+    INSERT INTO weekly_totals (user_id, week_start, username, miles)
+    SELECT user_id,
+           ran_on - ((EXTRACT(DOW FROM ran_on)::int + 6) % 7) AS week_start,
+           MAX(username), SUM(miles)
+    FROM runs
+    WHERE user_id BETWEEN 910001 AND 910003
+    GROUP BY user_id, week_start
+    ON CONFLICT (user_id, week_start) DO NOTHING
+  `);
+}
+
+async function start() {
+  // All three tables are public: their rows are club-visible content —
+  // usernames and mile numbers, the same data the board shows every member.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS runs (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       username VARCHAR(255) NOT NULL,
+      miles NUMERIC(6,2) NOT NULL,
+      note VARCHAR(200),
+      ran_on DATE NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    )
+    );
+    CREATE TABLE IF NOT EXISTS weekly_totals (
+      user_id INTEGER NOT NULL,
+      week_start DATE NOT NULL,
+      username VARCHAR(255) NOT NULL,
+      miles NUMERIC(8,2) NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, week_start)
+    );
+    CREATE TABLE IF NOT EXISTS weekly_goals (
+      user_id INTEGER PRIMARY KEY,
+      username VARCHAR(255) NOT NULL,
+      goal_miles NUMERIC(6,2) NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
+  if (IS_STAGING) {
+    try {
+      await seedStaging();
+    } catch (err) {
+      // Seed data must never keep the app from booting.
+      console.warn('staging seed failed: ' + err.message);
+    }
+  }
   const server = app.listen(port, () => console.log(`Listening on :${port}`));
   // Let Envoy retire idle upstream connections at 60s, with a 15s margin.
   server.keepAliveTimeout = 75_000;

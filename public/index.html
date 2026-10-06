@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+
   <script>
   // usernode-dev-console@1
   (function () {
@@ -108,156 +108,379 @@
   </script>
 </head>
 <body class="min-h-screen bg-ground text-fg">
-  <!-- Built from the design kit in styles/tailwind-input.css: colour tokens
-       (bg-ground, text-muted, bg-accent, ...) that are right in both looks,
-       and components (btn-primary, list, card, state-empty, ...). The real
-       app keeps the kit; CLAUDE.md's "## Design" says how. -->
   <main class="mx-auto flex max-w-md flex-col gap-8 px-4 py-10">
 
-    <!-- usernode-starter-notice@1 — starter-template messaging. When building
-         the user's real app, replace this whole screen and delete this block,
-         both sentinel comments included. -->
-    <section class="card flex flex-col items-start gap-3">
-      <span class="rounded-full bg-raised px-3 py-1 text-small font-medium text-muted">Starter template</span>
+    <header class="flex flex-col gap-1">
       <h1 class="text-title">Sunday Run Club</h1>
-      <p class="text-body text-muted">Welcome to your new app! Everything on this screen is placeholder content that came with it.</p>
-      <p class="text-body text-muted">To change this app, ask Homeroom bot: tap the <strong class="font-semibold text-fg">Homeroom icon</strong>, then <strong class="font-semibold text-fg">Suggest an improvement</strong>. Describe what you'd like in plain English, and it will be turned into your real app.</p>
-    </section>
+      <p id="week-label" class="text-body text-muted"></p>
+    </header>
 
-    <section>
-      <h2 class="section-label">What's already working</h2>
-      <ul class="list">
-        <li class="list-row items-start">
-          <svg class="mt-0.5 h-5 w-5 shrink-0 text-accent" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-body font-medium">Sign-in</p>
-            <p class="text-small text-muted">You're signed in through Homeroom automatically, with no accounts to build.</p>
-          </div>
-        </li>
-        <li class="list-row items-start">
-          <svg class="mt-0.5 h-5 w-5 shrink-0 text-accent" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-body font-medium">Database</p>
-            <p class="text-small text-muted">Your app has its own private database, ready to store things.</p>
-          </div>
-        </li>
-        <li class="list-row items-start">
-          <svg class="mt-0.5 h-5 w-5 shrink-0 text-accent" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.6l6.3-6.3a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/></svg>
-          <div>
-            <p class="text-body font-medium">Live API</p>
-            <p class="text-small text-muted">The example below talks to a real server. Try it.</p>
-          </div>
-        </li>
-      </ul>
-    </section>
-    <!-- /usernode-starter-notice@1 -->
-
-    <section class="flex flex-col items-center gap-5">
-      <div class="w-full px-1">
-        <h2 class="text-heading">Try the example</h2>
-        <p class="text-small text-muted">This example will be replaced</p>
+    <section class="card flex flex-col gap-4">
+      <h2 class="text-heading">Log a run</h2>
+      <div class="flex flex-col gap-1">
+        <label class="text-small text-muted" for="run-miles">Distance (miles)</label>
+        <input id="run-miles" class="field" type="number" inputmode="decimal" min="0" max="500" step="0.1" placeholder="5.0">
       </div>
-
-      <button id="press-btn" class="btn-primary h-32 w-32 rounded-full text-title active:scale-95">Press!</button>
-
-      <p id="count" class="min-h-6 text-body text-muted"></p>
-
-      <div class="w-full">
-        <h3 class="section-label">Leaderboard</h3>
-        <!-- Anything that loads data shows exactly one of these at a time:
-             loading, the data, empty (it loaded, and there is nothing yet)
-             or error (it did not load). The script below switches them. -->
-        <div id="leaderboard-loading" role="status">
-          <span class="sr-only">Loading the leaderboard</span>
-          <div class="list">
-            <div class="list-row"><div class="skeleton h-4 w-1/2"></div></div>
-            <div class="list-row"><div class="skeleton h-4 w-1/3"></div></div>
-            <div class="list-row"><div class="skeleton h-4 w-2/5"></div></div>
-          </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-small text-muted" for="run-note">Note (optional)</label>
+        <input id="run-note" class="field" type="text" maxlength="200" placeholder="Easy loop around the park">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-small text-muted" for="run-date">Date</label>
+        <input id="run-date" class="field" type="date">
+      </div>
+      <p id="form-note" class="text-small text-muted" hidden></p>
+      <button id="log-run" class="btn-primary">Log run</button>
+      <hr class="border-line">
+      <div class="flex items-end gap-2">
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
+          <label class="text-small text-muted" for="goal-miles">Weekly goal</label>
+          <input id="goal-miles" class="field" type="number" inputmode="decimal" min="0" max="1000" step="1" placeholder="20">
         </div>
-        <ol id="leaderboard" class="list" hidden></ol>
-        <div id="leaderboard-empty" class="state-empty" hidden>
-          <p class="text-heading">No presses yet</p>
-          <p class="text-body text-muted">Press the button to put your name on the board.</p>
-          <button id="leaderboard-press" class="btn-secondary">Press it</button>
-        </div>
-        <div id="leaderboard-error" class="state-error" hidden>
-          <svg class="h-6 w-6 text-danger" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/></svg>
-          <p class="text-heading">Couldn't load the leaderboard</p>
-          <p class="text-body text-muted">Pressing still works, and every press is saved.</p>
-          <button id="leaderboard-retry" class="btn-secondary">Retry</button>
-        </div>
+        <button id="save-goal" class="btn-secondary">Save goal</button>
       </div>
     </section>
 
-    <p class="text-center text-small text-muted">Built on Homeroom. This template screen disappears once you build your real app.</p>
+    <section class="flex flex-col">
+      <h2 class="section-label">This week</h2>
+      <!-- Anything that loads data shows exactly one of these at a time:
+           loading, the data, empty (it loaded, and there is nothing yet)
+           or error (it did not load). The script below switches them. -->
+      <div id="week-loading" role="status">
+        <span class="sr-only">Loading this week's standings</span>
+        <div class="list">
+          <div class="list-row"><div class="skeleton h-4 w-1/2"></div></div>
+          <div class="list-row"><div class="skeleton h-4 w-2/5"></div></div>
+          <div class="list-row"><div class="skeleton h-4 w-1/3"></div></div>
+        </div>
+      </div>
+      <ul id="week-list" class="list" hidden></ul>
+      <div id="week-empty" class="state-empty" hidden>
+        <p class="text-heading">No miles yet this week</p>
+        <p class="text-body text-muted">Log the first run to get the board started.</p>
+      </div>
+      <div id="week-error" class="state-error" hidden>
+        <svg class="h-6 w-6 text-danger" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/></svg>
+        <p class="text-heading">Couldn't load the board</p>
+        <p class="text-body text-muted">The list still works once it loads.</p>
+        <button id="week-retry" class="btn-secondary">Retry</button>
+      </div>
+    </section>
+
+    <section id="recent-section" class="flex flex-col">
+      <h2 class="section-label">Recent weeks</h2>
+      <div id="recent-loading" role="status">
+        <span class="sr-only">Loading recent weeks</span>
+        <div class="list">
+          <div class="list-row justify-between"><div class="skeleton h-4 w-1/3"></div><div class="skeleton h-4 w-10"></div><div class="skeleton h-4 w-10"></div><div class="skeleton h-4 w-10"></div></div>
+          <div class="list-row justify-between"><div class="skeleton h-4 w-1/4"></div><div class="skeleton h-4 w-10"></div><div class="skeleton h-4 w-10"></div><div class="skeleton h-4 w-10"></div></div>
+          <div class="list-row justify-between"><div class="skeleton h-4 w-2/5"></div><div class="skeleton h-4 w-10"></div><div class="skeleton h-4 w-10"></div><div class="skeleton h-4 w-10"></div></div>
+        </div>
+      </div>
+      <ul id="recent-list" class="list" hidden></ul>
+      <div id="recent-error" class="state-error" hidden>
+        <svg class="h-6 w-6 text-danger" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/></svg>
+        <p class="text-heading">Couldn't load the board</p>
+        <p class="text-body text-muted">The list still works once it loads.</p>
+        <button id="recent-retry" class="btn-secondary">Retry</button>
+      </div>
+    </section>
+
   </main>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token') || '';
-    const headers = token ? { 'x-usernode-token': token } : {};
-    const count = document.getElementById('count');
+    (function () {
+      'use strict';
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token') || '';
+      const baseHeaders = token ? { 'x-usernode-token': token } : {};
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    // The leaderboard's states, one shown at a time. Empty only when the
-    // load worked and found nothing; a failure is the error state, never
-    // "No presses yet".
-    const views = {
-      loading: document.getElementById('leaderboard-loading'),
-      list: document.getElementById('leaderboard'),
-      empty: document.getElementById('leaderboard-empty'),
-      error: document.getElementById('leaderboard-error'),
-    };
-    function show(state) {
-      for (const [name, el] of Object.entries(views)) el.hidden = name !== state;
-    }
-
-    async function loadLeaderboard() {
-      let leaderboard;
-      try {
-        const res = await fetch('/api/leaderboard', { headers });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        ({ leaderboard } = await res.json());
-      } catch {
-        show('error');
-        return;
+      // "Now" comes from the platform: usernode.now() is the preview moment
+      // when the board is opened as of a chosen time, the real time
+      // otherwise — never new Date() where it decides what shows. When a
+      // preview moment is set, every fetch carries it so the server's week
+      // matches the page's.
+      function nowDate() {
+        const un = window.usernode;
+        return un && typeof un.now === 'function' ? un.now() : new Date();
       }
+      function apiHeaders() {
+        const h = Object.assign({}, baseHeaders);
+        const un = window.usernode;
+        if (un && un.previewNow && typeof un.now === 'function') {
+          h['x-usernode-now'] = un.now().toISOString();
+        }
+        return h;
+      }
+
+      // Weeks run Monday to Sunday, in UTC — the same rule the server uses.
+      function fmtDate(d) { return d.toISOString().slice(0, 10); }
+      function addDays(dateStr, n) {
+        const d = new Date(dateStr + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() + n);
+        return fmtDate(d);
+      }
+      function mondayOf(d) {
+        const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+        day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+        return day;
+      }
+      function fmtMiles(m) { return Number(m).toFixed(1); }
+      function fmtGoal(g) { const n = Number(g); return n % 1 === 0 ? String(n) : n.toFixed(1); }
+      function monthDay(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00Z');
+        return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate();
+      }
+      function weekLabelText(startStr, endStr) {
+        const s = new Date(startStr + 'T00:00:00Z');
+        const e = new Date(endStr + 'T00:00:00Z');
+        if (s.getUTCMonth() === e.getUTCMonth()) {
+          return 'Week of ' + s.getUTCDate() + ' to ' + e.getUTCDate() + ' ' + MONTHS[e.getUTCMonth()];
+        }
+        return 'Week of ' + s.getUTCDate() + ' ' + MONTHS[s.getUTCMonth()] + ' to ' + e.getUTCDate() + ' ' + MONTHS[e.getUTCMonth()];
+      }
+
+      const weekLabel = document.getElementById('week-label');
+      const formNote = document.getElementById('form-note');
+      const milesInput = document.getElementById('run-miles');
+      const noteInput = document.getElementById('run-note');
+      const dateInput = document.getElementById('run-date');
+      const goalInput = document.getElementById('goal-miles');
+      const logBtn = document.getElementById('log-run');
+      const goalBtn = document.getElementById('save-goal');
+      const recentSection = document.getElementById('recent-section');
+
+      const weekViews = {
+        loading: document.getElementById('week-loading'),
+        list: document.getElementById('week-list'),
+        empty: document.getElementById('week-empty'),
+        error: document.getElementById('week-error'),
+      };
+      const recentViews = {
+        loading: document.getElementById('recent-loading'),
+        list: document.getElementById('recent-list'),
+        error: document.getElementById('recent-error'),
+      };
+      function show(views, state) {
+        for (const [name, el] of Object.entries(views)) el.hidden = name !== state;
+      }
+
+      // The header names the week before any data arrives, from the same
+      // Monday-to-Sunday rule; the server's answer confirms it.
+      const start = fmtDate(mondayOf(nowDate()));
+      weekLabel.textContent = weekLabelText(start, addDays(start, 6));
+      // A run can be backdated to a past day, never into the future.
+      dateInput.value = fmtDate(nowDate());
+      dateInput.max = fmtDate(nowDate());
+
+      let lastPayload = null;
+
+      function setFormNote(text, kind) {
+        formNote.textContent = text;
+        formNote.className = 'text-small ' + (kind === 'error' ? 'text-danger' : 'font-medium text-fg');
+        formNote.hidden = false;
+      }
+
       // People's names go in as text, never as HTML.
-      views.list.replaceChildren(...leaderboard.map((r, i) => {
-        const row = document.createElement('li');
-        row.className = 'list-row justify-between';
-        const name = document.createElement('span');
-        name.textContent = (i + 1) + '. ' + r.username;
-        const presses = document.createElement('span');
-        presses.className = 'tabular-nums text-muted';
-        presses.textContent = r.presses;
-        row.append(name, presses);
-        return row;
-      }));
-      const total = leaderboard.reduce((s, r) => s + parseInt(r.presses, 10), 0);
-      count.textContent = total + (total === 1 ? ' press so far' : ' presses so far');
-      show(leaderboard.length ? 'list' : 'empty');
-    }
+      function render(payload) {
+        weekLabel.textContent = weekLabelText(payload.week.start, payload.week.end);
+        renderRunners(payload);
+        renderRecent(payload);
+      }
 
-    async function press() {
-      try {
-        const res = await fetch('/api/press', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
-        });
-        if (res.ok) loadLeaderboard();
-        else if (res.status === 401) count.textContent = 'Sign in to press!';
-      } catch {}
-    }
+      function renderRunners(payload) {
+        if (!payload.runners.length) {
+          show(weekViews, 'empty');
+          return;
+        }
+        show(weekViews, 'list');
+        weekViews.list.replaceChildren(...payload.runners.map((r) => {
+          const li = document.createElement('li');
+          li.className = 'list-row';
+          const col = document.createElement('div');
+          col.className = 'flex w-full flex-col gap-1.5';
+          const top = document.createElement('div');
+          top.className = 'flex items-baseline justify-between gap-2';
+          const name = document.createElement('span');
+          name.className = 'min-w-0 truncate text-body font-medium';
+          name.textContent = r.username;
+          if (payload.viewer_id != null && r.user_id === payload.viewer_id) {
+            const you = document.createElement('span');
+            you.className = 'ml-2 shrink-0 rounded-full bg-raised px-2 py-0.5 text-small font-medium text-muted';
+            you.textContent = 'You';
+            name.appendChild(you);
+          }
+          const miles = document.createElement('span');
+          miles.className = 'shrink-0 tabular-nums text-body';
+          miles.textContent = fmtMiles(r.miles) + ' mi';
+          // The weekly miles strip: this week's span, filled toward the
+          // runner's own goal. Over the goal it is simply full; no goal, no
+          // fill. "strip" is also the hook the board check looks for.
+          const strip = document.createElement('div');
+          strip.className = 'strip h-1.5 w-full overflow-hidden rounded-full bg-line';
+          if (r.goal != null) {
+            const fill = document.createElement('div');
+            fill.className = 'h-full rounded-full bg-accent';
+            fill.style.width = Math.min(Number(r.miles) / Number(r.goal), 1) * 100 + '%';
+            strip.appendChild(fill);
+          }
+          const goalLine = document.createElement('p');
+          goalLine.className = 'text-small text-muted';
+          goalLine.textContent = r.goal == null ? 'no goal set' : 'of ' + fmtGoal(r.goal) + ' mi goal';
+          top.append(name, miles);
+          col.append(top, strip, goalLine);
+          li.appendChild(col);
+          return li;
+        }));
+      }
 
-    document.getElementById('press-btn').addEventListener('click', press);
-    document.getElementById('leaderboard-press').addEventListener('click', press);
-    document.getElementById('leaderboard-retry').addEventListener('click', () => {
-      show('loading');
-      loadLeaderboard();
-    });
+      function cell(text) {
+        const span = document.createElement('span');
+        span.className = 'w-14 shrink-0 text-right tabular-nums text-small text-muted';
+        span.textContent = text;
+        return span;
+      }
 
-    loadLeaderboard();
+      function renderRecent(payload) {
+        // With nobody in the club the standings' empty state says it all;
+        // there is no grid to show.
+        if (!payload.runners.length) {
+          recentSection.hidden = true;
+          return;
+        }
+        recentSection.hidden = false;
+        show(recentViews, 'list');
+        const milesByUserWeek = new Map();
+        for (const w of payload.recent_weeks) {
+          for (const t of w.totals) {
+            if (!milesByUserWeek.has(t.user_id)) milesByUserWeek.set(t.user_id, new Map());
+            milesByUserWeek.get(t.user_id).set(w.week_start, t.miles);
+          }
+        }
+        const rows = [];
+        const head = document.createElement('li');
+        head.className = 'list-row text-small';
+        const headName = document.createElement('span');
+        headName.className = 'min-w-0 flex-1';
+        head.appendChild(headName);
+        for (const w of payload.recent_weeks) head.appendChild(cell(monthDay(w.week_start)));
+        rows.push(head);
+        for (const r of payload.runners) {
+          const li = document.createElement('li');
+          li.className = 'list-row text-small';
+          const name = document.createElement('span');
+          name.className = 'min-w-0 flex-1 truncate font-medium';
+          name.textContent = r.username;
+          li.appendChild(name);
+          const perWeek = milesByUserWeek.get(r.user_id);
+          for (const w of payload.recent_weeks) {
+            li.appendChild(cell(perWeek && perWeek.has(w.week_start) ? fmtMiles(perWeek.get(w.week_start)) : '–'));
+          }
+          rows.push(li);
+        }
+        recentViews.list.replaceChildren(...rows);
+      }
+
+      async function loadBoard() {
+        show(weekViews, 'loading');
+        show(recentViews, 'loading');
+        recentSection.hidden = false;
+        try {
+          const res = await fetch('/api/leaderboard', { headers: apiHeaders() });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          lastPayload = data;
+          render(data);
+        } catch {
+          show(weekViews, 'error');
+          show(recentViews, 'error');
+          recentSection.hidden = false;
+        }
+      }
+
+      async function logRun() {
+        logBtn.disabled = true;
+        try {
+          const res = await fetch('/api/runs', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
+            body: JSON.stringify({ miles: milesInput.value, note: noteInput.value, date: dateInput.value }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            lastPayload = data;
+            render(data);
+            setFormNote('Logged ' + fmtMiles(data.logged) + ' miles');
+            milesInput.value = '';
+            noteInput.value = '';
+          } else if (res.status === 401) {
+            setFormNote('Make an account to log runs', 'error');
+          } else {
+            let msg = 'Could not log the run';
+            try {
+              const data = await res.json();
+              if (data && data.error) msg = data.error;
+            } catch {}
+            setFormNote(msg, 'error');
+          }
+        } catch {
+          setFormNote('Could not log the run. Check your connection and try again.', 'error');
+        } finally {
+          logBtn.disabled = false;
+        }
+      }
+
+      async function saveGoal() {
+        goalBtn.disabled = true;
+        try {
+          const res = await fetch('/api/goals', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
+            body: JSON.stringify({ goal_miles: goalInput.value }),
+          });
+          if (res.ok) {
+            // The strip answers where words would: re-render the viewer's
+            // row with their goal, without refetching the board.
+            const goal = Number(goalInput.value);
+            const viewer = lastPayload && lastPayload.runners
+              ? lastPayload.runners.find((r) => r.user_id === lastPayload.viewer_id) : null;
+            if (viewer) {
+              viewer.goal = goal;
+              renderRunners(lastPayload);
+            } else {
+              loadBoard();
+            }
+          } else if (res.status === 401) {
+            setFormNote('Make an account to log runs', 'error');
+          } else {
+            let msg = 'Could not save the goal';
+            try {
+              const data = await res.json();
+              if (data && data.error) msg = data.error;
+            } catch {}
+            setFormNote(msg, 'error');
+          }
+        } catch {
+          setFormNote('Could not save the goal. Check your connection and try again.', 'error');
+        } finally {
+          goalBtn.disabled = false;
+        }
+      }
+
+      document.getElementById('log-run').addEventListener('click', logRun);
+      document.getElementById('save-goal').addEventListener('click', saveGoal);
+      document.getElementById('week-retry').addEventListener('click', () => {
+        show(weekViews, 'loading');
+        loadBoard();
+      });
+      document.getElementById('recent-retry').addEventListener('click', () => {
+        show(recentViews, 'loading');
+        loadBoard();
+      });
+
+      loadBoard();
+    })();
   </script>
 </body>
 </html>
