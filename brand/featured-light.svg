@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <!-- Sunday Run Club featured illustration, light version: black shoe and motion
+       lines on cream, yellow sun with a black outline, green ground strip.
+       Same shared mark geometry as brand/icon.svg, at scale 14 with the horizon
+       (y=64) on the ground-strip top (y=830). -->
+  <rect width="1920" height="1080" fill="#FFFEEA"/>
+  <rect x="0" y="838" width="1920" height="242" fill="#A9CF97"/>
+  <rect x="0" y="830" width="1920" height="8" fill="#000000"/>
+  <g transform="translate(386 830) scale(14) translate(-4 -64)">
+    <!-- sun: half disc rising on the horizon, outlined so it holds on cream -->
+    <path d="M38 64 A24 24 0 0 1 86 64 Z" fill="#FFEE6F" stroke="#000000" stroke-width="0.6"/>
+    <!-- shoe: side view, toe right, flat silhouette -->
+    <path d="M22 72 L22 55 Q22 49 28 49 L37 49 L47 57 Q55 61 66 61 Q79 62 82 67 Q84 72 80 74 L24 74 Q22 74 22 72 Z" fill="#000000"/>
+    <!-- sole stripe: cut-out line across the shoe -->
+    <rect x="22" y="66" width="61" height="3.5" rx="1.75" fill="#FFFEEA"/>
+    <!-- motion lines: three rounded bars behind the heel -->
+    <rect x="8" y="54" width="10" height="4.5" rx="2.25" fill="#000000"/>
+    <rect x="4" y="62" width="14" height="4.5" rx="2.25" fill="#000000"/>
+    <rect x="10" y="70" width="8" height="4.5" rx="2.25" fill="#000000"/>
+  </g>
+</svg>
